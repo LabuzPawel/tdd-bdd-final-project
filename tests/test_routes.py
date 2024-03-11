@@ -29,12 +29,11 @@ import logging
 from decimal import Decimal
 from unittest import TestCase
 from urllib.parse import quote_plus
-from urllib.parse import quote_plus
 from service import app
 from service.common import status
-from service.models import db, init_db, Product, Category
+from service.models import db, init_db, Product, DataValidationError
 from tests.factories import ProductFactory
-
+from unittest.mock import patch
 
 # Disable all but critical errors during normal test run
 # uncomment for debugging failing tests
@@ -111,9 +110,17 @@ class TestProductRoutes(TestCase):
         data = response.get_json()
         self.assertEqual(data['message'], 'OK')
 
+    def test_deserialize(self):
+        """Deserialize"""
+        test_product = ProductFactory()
+        logging.debug("Test Product: %s", test_product.serialize())
+        response = self.client.post(BASE_URL, json=test_product.serialize())
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
     # ----------------------------------------------------------
     # TEST CREATE
     # ----------------------------------------------------------
+
     def test_create_product(self):
         """It should Create a new Product"""
         test_product = ProductFactory()
@@ -205,7 +212,7 @@ class TestProductRoutes(TestCase):
         self.assertEqual(API_repsonse.status_code, status.HTTP_404_NOT_FOUND)
         new_count = self.get_product_count()
         self.assertEqual(new_count, product_count - 1)
-    
+
     def test_get_product_list(self):
         """Get a list of all products"""
         self._create_products(5)
@@ -244,13 +251,85 @@ class TestProductRoutes(TestCase):
         """Search products by availability"""
         products = self._create_products(10)
         available_products = [product for product in products if product.available is True]
-        available_count = len(available_products)        
+        available_count = len(available_products)
         response = self.client.get(BASE_URL, query_string="available=true")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.get_json()
         self.assertEqual(len(data), available_count)
         for product in data:
             self.assertEqual(product["available"], True)
+
+    def test_invalid_name(self):
+        """Invalid name"""
+        product = Product()
+        invalid_data = {
+            "description": "Test Description",
+            "price": "10.00",
+            "available": True,
+            "category": "SOME_CATEGORY"
+        }
+        with self.assertRaises(DataValidationError) as context:
+            product.deserialize(invalid_data)
+        self.assertIn("name", str(context.exception))
+
+    def test_invalid_description(self):
+        product = Product()
+        invalid_data = {
+            "name": "Test Product",
+            "price": "10.00",
+            "available": True,
+            "category": "SOME_CATEGORY"
+        }
+        with self.assertRaises(DataValidationError) as context:
+            product.deserialize(invalid_data)
+        self.assertIn("description", str(context.exception))
+
+    def test_invalid_price(self):
+        product = Product()
+        invalid_data = {
+            "name": "Test Product",
+            "description": "Test Description",
+            "available": True,
+            "category": "SOME_CATEGORY"
+        }
+        with self.assertRaises(DataValidationError) as context:
+            product.deserialize(invalid_data)
+        self.assertIn("price", str(context.exception))
+
+    def test_invalid_available(self):
+        product = Product()
+        invalid_data = {
+            "name": "Test Product",
+            "description": "Test Description",
+            "price": "10.00",
+            "available": "not_bool",
+            "category": "SOME_CATEGORY"
+        }
+        with self.assertRaises(DataValidationError) as context:
+            product.deserialize(invalid_data)
+        self.assertIn("available", str(context.exception))
+
+    @patch('service.models.Product.find')
+    def test_update_product_not_found(self, mock_find):
+        # Mock the Product.find method to return None
+        mock_find.return_value = None
+
+        # Send a PUT request to update a non-existent product
+        with app.test_client() as client:
+            response = client.put('/products/123', json={
+                "name": "Updated Product",
+                "description": "Updated Description",
+                "price": "10.00",
+                "available": True,
+                "category":
+                "SOME_CATEGORY"})
+
+            # Check that the response has status code 404
+            self.assertEqual(response.status_code, 404)
+
+            # Check that the response contains the expected error message
+            expected_error_message = "Product with id '123' was not found."
+            self.assertIn(expected_error_message, response.json['message'])
 
     ######################################################################
     # Utility functions

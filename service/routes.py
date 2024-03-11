@@ -24,19 +24,21 @@ from service.models import Product, Category
 from service.common import status  # HTTP Status Codes
 from . import app
 
+######################################################################
+# H E A L T H  C H E C K
+######################################################################
 
-######################################################################
-# H E A L T H   C H E C K
-######################################################################
+
 @app.route("/health")
 def healthcheck():
     """Let them know our heart is still beating"""
     return jsonify(status=200, message="OK"), status.HTTP_200_OK
 
+######################################################################
+# H O M E  P A G E
+######################################################################
 
-######################################################################
-# H O M E   P A G E
-######################################################################
+
 @app.route("/")
 def index():
     """Base URL for our service"""
@@ -44,8 +46,10 @@ def index():
 
 
 ######################################################################
-#  U T I L I T Y   F U N C T I O N S
+#  U T I L I T Y  F U N C T I O N S
 ######################################################################
+
+
 def check_content_type(content_type):
     """Checks that the media type is correct"""
     if "Content-Type" not in request.headers:
@@ -66,8 +70,10 @@ def check_content_type(content_type):
 
 
 ######################################################################
-# C R E A T E   A   N E W   P R O D U C T
+# C R E A T E  A  N E W  P R O D U C T
 ######################################################################
+
+
 @app.route("/products", methods=["POST"])
 def create_products():
     """
@@ -93,9 +99,11 @@ def create_products():
     location_url = "/"  # delete once READ is implemented
     return jsonify(message), status.HTTP_201_CREATED, {"Location": location_url}
 
+
 ######################################################################
 # LIST PRODUCTS
 ######################################################################
+
 
 @app.route("/products", methods=["GET"])
 def list_products():
@@ -123,20 +131,24 @@ def list_products():
     app.logger.info("[%s] Products returned", len(results))
     return results, status.HTTP_200_OK
 
+
 ######################################################################
-# R E A D   A   P R O D U C T
+# R E A D  A  P R O D U C T
 ######################################################################
 
-@app.route('/products/<int:product_id>', methods = ["GET"])
+
+@app.route('/products/<int:product_id>', methods=["GET"])
 def get_products(product_id):
     product = Product.find(product_id)
     if not product:
         abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found")
     return product.serialize(), status.HTTP_200_OK
 
+
 ######################################################################
-# U P D A T E   A   P R O D U C T
+# U P D A T E  A  P R O D U C T
 ######################################################################
+
 
 @app.route("/products/<int:product_id>", methods=["PUT"])
 def update_products(product_id):
@@ -148,9 +160,11 @@ def update_products(product_id):
     product.update()
     return product.serialize(), status.HTTP_200_OK
 
+
 ######################################################################
-# D E L E T E   A   P R O D U C T
+# D E L E T E  A  P R O D U C T
 ######################################################################
+
 
 @app.route("/products/<int:product_id>", methods=["DELETE"])
 def delete_products(product_id):

@@ -27,7 +27,7 @@ import os
 import logging
 import unittest
 from decimal import Decimal
-from service.models import Product, Category, db
+from service.models import Product, Category, db, DataValidationError
 from service import app
 from tests.factories import ProductFactory
 
@@ -200,3 +200,10 @@ class TestProductModel(unittest.TestCase):
                 count += 1
         found_by_category_products = Product.find_by_category(category).count()
         self.assertEqual(count, found_by_category_products)
+
+    def test_update_without_id(self):
+        """Update a product without id"""
+        product = ProductFactory()
+        product.create()
+        product.id = None
+        self.assertRaises(DataValidationError, product.update)
